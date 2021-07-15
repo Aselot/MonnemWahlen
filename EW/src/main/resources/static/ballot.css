@@ -1,0 +1,104 @@
+.row {
+    display: flex;
+    flex-direction: row;
+    flex-grow: 1;
+}
+
+
+.margin1{
+    margin: 1% 1%;
+}
+
+.input{
+    width: auto;
+}
+
+
+
+.doubleColumn {
+    column-count: 2;
+}
+.fWrap {
+    flex-wrap: wrap;
+}
+
+.flex {
+    display: flex;
+}
+
+.fGrow{
+    flex-grow: 3;
+}
+
+.fRow{
+    flex-direction: row;
+}
+
+.fCol{
+    flex-direction: column;
+}
+
+.fEl{
+    flex:30%;
+    width: auto;
+}
+
+.tableRow{
+    display: table-row;
+}
+
+
+.border {
+    border: 2px solid black;
+    border-radius: 6px
+}
+
+.dashed {
+    border-style: dashed;
+}
+
+.Textarea {
+    resize: none;
+}
+
+
+
+
+
+
+.button {
+    margin: 0.3%;
+    border: 1px solid #0099cc;
+    background-color: #00aacc;
+    color: antiquewhite;
+    padding: 5px 10px;
+    text-align: center;
+    min-width: 208px;
+}
+
+.button:hover {
+    border: 1px solid #0099cc;
+    background-color: #00aacc;
+    color: #ffffff;
+    padding: 5px 10px;
+    min-width: 208px;
+
+}
+
+.button:disabled,
+.button[disabled] {
+    border: 1px solid #999999;
+    background-color: #cccccc;
+    color: #666666;
+    text-align: center;
+    min-width: 208px;
+
+}
+
+.backgrnG{
+    background-color: #00fa9a;
+}
+
+.backgrnB{
+    background-color: #02c4ea;
+}
