@@ -1,16 +1,14 @@
 package ew;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.codec.binary.Base64;
 
 import javax.crypto.*;
 import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 public class ElectionWorker implements Serializable {
@@ -21,7 +19,7 @@ public class ElectionWorker implements Serializable {
     private String ballot;
     private String cipherBallot;
 
-    private List<String> voterList;
+    private Map<String,Boolean> voterList;
 
     private KeyPair firstPair;
     private PrivateKey firstPrivateKey;
@@ -48,7 +46,7 @@ public class ElectionWorker implements Serializable {
         KeyPairGenerator smallKeygen;
         KeyGenerator symKeygen;
 
-        voterList = new ArrayList<>();
+        voterList = new HashMap<>();
         this.ID1 = ID1;
         this.ID2 = ID2;
         try {
@@ -70,7 +68,7 @@ public class ElectionWorker implements Serializable {
             decryptionKey = ek_dkPair.getPublic();
 
 
-            smallKeygen = KeyPairGenerator.getInstance("RSA");
+            smallKeygen = KeyPairGenerator.getInstance("Elgamal");
 
             smallKeygen.initialize(2048);
 
@@ -91,74 +89,82 @@ public class ElectionWorker implements Serializable {
     }
 
     public void addVoter(String voter_id) {
-        voterList.add(voter_id);
+        voterList.put(voter_id,Boolean.TRUE);
     }
 
     public boolean hasVoter(String voter_id) {
-        return voterList.contains(voter_id);
+        return voterList.containsKey(voter_id);
     }
 
-    public void test() {
+    public boolean hasVote(String voter_id) {
+        return voterList.get(voter_id);
+    }
 
-        ballot = "json.toString()23123123312as2dsfs2f23f233123123123123123";
+//    public void test() {
+//
+//        ballot = "json.toString()23123123312as2dsfs2f23f233123123123123123";
+//        try {
+//            //first encrypt with ek
+//            String encrypted_Ballot = encrypt(ballot, Cipher.ENCRYPT_MODE, encryptionKey);
+//
+//            //hash it
+//            String hashed_encrypted_Ballot = digest(encrypted_Ballot);
+//            //blind it
+//            String blinded_hashed_encrypted_Ballot = encrypt(hashed_encrypted_Ballot, Cipher.ENCRYPT_MODE, blindingKey);
+//
+//            String re_encryptedBallot = encrypt(blinded_hashed_encrypted_Ballot, Cipher.DECRYPT_MODE, deblindingKey);
+//
+//
+//
+//            //sign it test
+//            String signed_h_e_B = encrypt(re_encryptedBallot, Cipher.ENCRYPT_MODE, firstPrivateKey);
+//
+//            //remove blind
+//
+//
+//            //remove sign
+//            String re_hashed_encrypted_Ballot = encrypt(signed_h_e_B, Cipher.DECRYPT_MODE, firstPublicKey);
+//
+//            System.out.println("" + re_encryptedBallot + re_hashed_encrypted_Ballot);
+////            cipherBallot = blind(digest(encrypt(ballot)));
+//
+//        } catch (BadPaddingException | IllegalBlockSizeException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException e) {
+//            e.printStackTrace();
+//        }
+//
+//    }
+
+
+    public String encryptBallot(String ballot) {
+
         try {
-            //first encrypt with ek
-            String encrypted_Ballot = encrypt(ballot, Cipher.ENCRYPT_MODE, encryptionKey);
-
-            //hash it
-            String hashed_encrypted_Ballot = digest(encrypted_Ballot);
-            //blind it
-            String blinded_hashed_encrypted_Ballot = encrypt(hashed_encrypted_Ballot, Cipher.ENCRYPT_MODE, blindingKey);
-
-            String re_encryptedBallot = encrypt(blinded_hashed_encrypted_Ballot, Cipher.DECRYPT_MODE, deblindingKey);
-
-
-
-            //sign it test
-            String signed_h_e_B = encrypt(re_encryptedBallot, Cipher.ENCRYPT_MODE, firstPrivateKey);
-
-            //remove blind
-
-
-            //remove sign
-            String re_hashed_encrypted_Ballot = encrypt(signed_h_e_B, Cipher.DECRYPT_MODE, firstPublicKey);
-
-            System.out.println("" + re_encryptedBallot + re_hashed_encrypted_Ballot);
-//            cipherBallot = blind(digest(encrypt(ballot)));
+           /// ballot = new ObjectMapper().writeValueAsString(json);
+            cipherBallot = encrypt(ballot, Cipher.ENCRYPT_MODE, encryptionKey);
 
         } catch (BadPaddingException | IllegalBlockSizeException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
 
+        return cipherBallot;
+    }
+
+    public void setVoterHasVoted(String voter_id, boolean b) {
+        voterList.put(voter_id,Boolean.FALSE);
     }
 
 
-    public void encryptAndSetBallot(Map<String, Object> json) {
+    public String sign(String ballot,int key){
 
-        ballot = json.toString();
         try {
-            cipherBallot = encrypt(ballot, Cipher.ENCRYPT_MODE, encryptionKey);
-
-            //hash it
-            hashed_cipher_Ballot = digest(cipherBallot);
-
-        } catch (BadPaddingException | IllegalBlockSizeException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException  e) {
+            return encrypt(ballot,Cipher.ENCRYPT_MODE,key==1? firstPrivateKey: secondPrivateKey);
+        } catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException e) {
             e.printStackTrace();
         }
-
+        return null;
     }
 
     //
-    public String digest(String ballot) {
-        MessageDigest digest = null;
-        try {
-            digest = MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        byte[] hash = digest.digest(ballot.getBytes(StandardCharsets.UTF_8));
-        return Base64.encodeBase64String(hash);
-    }
+
 //
 
     public String encrypt(String input, int decryptMode, Key key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
@@ -221,6 +227,10 @@ public class ElectionWorker implements Serializable {
 
     public PublicKey getDecryptionKey() {
         return decryptionKey;
+    }
+
+    public String getCipherBallot() {
+        return cipherBallot;
     }
 
 

@@ -37,7 +37,7 @@ public class AuthController {
             // TODO: url of electionworker here
             String worker_id = authService.getElectionWorker(name);
             String voter_id = authService.getVoterID(name);
-            String url = String.format("http://localhost:8082/submitVote/poll1/%s/%s",worker_id,voter_id );
+            String url = String.format(authService.getUrl("ew")+"/submitVote/poll1/%s/%s",worker_id,voter_id );
             return new ModelAndView("redirect:"+url);
         }
 
@@ -54,7 +54,7 @@ public class AuthController {
     public Map<String, String> saveAndAssignWorkerIDs(HttpServletRequest request,
                                                       HttpServletResponse response, Model model) throws SQLException {
         String jsonString = request.getParameter("json");
-        Enumeration<String> parameterNames = request.getParameterNames();
+
         Map<String,String> voter_workerList = this.authService.assignWorkerIDs(jsonString);
         this.authService.saveVoterWorkerListToDB(voter_workerList);
         return voter_workerList;

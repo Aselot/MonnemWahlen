@@ -1,16 +1,22 @@
 package val;
 
+import monnemwahlen.mw.KeyPairEntityService;
+import monnemwahlen.mw.MoService;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.xml.transform.Result;
 import java.io.*;
 import java.security.*;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
+import java.util.Base64;
 import java.util.Map;
 
 @Service
-public class ValidatorService {
+public class ValidatorService implements MoService, KeyPairEntityService {
 
     private String path = "./validator/src/main/java/val";
 
@@ -27,61 +33,67 @@ public class ValidatorService {
     private Statement val_stmt;
 
     public ValidatorService() {
+
+        try {
+            Class.forName(this.JDBC_DRIVER);
+
+
+        //init conenctions for election workers db
+
+        this.val_conn = DriverManager.getConnection(
+                this.DB_URL, this.DBUser, this.password);
+
+        this.val_stmt = val_conn.createStatement();
+
+        String sql = "Use validatordb;";
+        this.val_stmt.executeUpdate(sql);
+
+        } catch (ClassNotFoundException | SQLException e) {
+            e.printStackTrace();
+        }
+
         if (!checkForKeyPair()) {
-            createNewKeyPair();
+            createNewKeyPair(privateKeyPath,publicKeyPath);
         }
     }
 
-    private void createNewKeyPair() {
-        try {
-            KeyPairGenerator keygen = KeyPairGenerator.getInstance("RSA");
+    public String checkForSignature(Map<String, Object> json) {
+        String id1 = (String) json.get("id");
+        String ballot = (String) json.get("ballot");
+        String voter_ids;
+        try{
+            val_stmt = val_conn.createStatement();
+            ResultSet rs =  val_stmt.executeQuery("select * from rvl1 where worker_id = \""+id1+"\";");
+            rs.next();
+            PublicKey pk = stringToPublicKey(rs.getString("public_key"));
 
-            keygen.initialize(2048);
+            String hashBallot = encrypt(ballot, Cipher.DECRYPT_MODE,pk);
+            System.out.println(hashBallot);
+            return hashBallot;
 
-            KeyPair pair = keygen.generateKeyPair();
-            PrivateKey privateKey = pair.getPrivate();
-            PublicKey publicKey = pair.getPublic();
 
-            FileOutputStream fileOut = new FileOutputStream(privateKeyPath);
-            ObjectOutputStream objectOut = new ObjectOutputStream(fileOut);
-            objectOut.writeObject(privateKey);
-            objectOut.close();
-
-            fileOut = new FileOutputStream(publicKeyPath);
-            objectOut = new ObjectOutputStream(fileOut);
-            objectOut.writeObject(publicKey);
-            objectOut.close();
-
-        } catch (NoSuchAlgorithmException | IOException e) {
-            e.printStackTrace();
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
         }
+
+        return "";
+
     }
 
-    public Key getKey(String keyType){
-        try {
-            FileInputStream fileIn = new FileInputStream(keyType.equals("private") ? privateKeyPath: publicKeyPath);
-            ObjectInputStream objIn = new ObjectInputStream(fileIn);
-            Key key;
-            if(keyType.equals("private")){
-                key = (PrivateKey) objIn.readObject();
-            }
-            else
-            {
-                key = (PublicKey) objIn.readObject();
-            }
+    public String getSignedBallot(String ballot) {
 
-            objIn.close();
+        PrivateKey sk = (PrivateKey) getKey(privateKeyPath);
 
-            return key;
+        String signedBallot = encrypt(ballot,Cipher.ENCRYPT_MODE,sk);
 
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
+        return signedBallot;
+
     }
+
 
     private boolean checkForKeyPair() {
-        File publicKey = new File(path + "/" + publicKeyPath);
-        File privateKey = new File(path + "/" + privateKeyPath);
+        File publicKey = new File(publicKeyPath);
+        File privateKey = new File(privateKeyPath);
 
         if ((publicKey.exists() && !publicKey.isDirectory()) && (privateKey.exists() && !privateKey.isDirectory())) {
             return true;
@@ -91,6 +103,8 @@ public class ValidatorService {
     }
 
 
+
+
     public void saveRVL(Map<String, Object> json) {
 
         try {
@@ -98,15 +112,25 @@ public class ValidatorService {
 
             val_stmt.executeQuery("Delete from rvl1");
 
-            for (var entry:json.entrySet()){
-                val_stmt = val_conn.createStatement();
-                val_stmt.executeQuery()
+            StringBuilder rvl1Query = new StringBuilder("Insert into rvl1 (worker_id, public_key) values ");
 
+            for (var entry:json.entrySet()){
+                rvl1Query.append(String.format("(\"%s\",  \"%s\"), ", entry.getKey(),entry.getValue()));
             }
+
+            rvl1Query.setLength(rvl1Query.length()-2);
+
+            val_stmt = val_conn.createStatement();
+            val_stmt.executeQuery(rvl1Query.toString()+";");
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
 
 
+    }
+
+
+    public String getPublicKeyPath() {
+        return publicKeyPath;
     }
 }

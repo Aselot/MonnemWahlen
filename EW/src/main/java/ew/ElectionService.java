@@ -1,5 +1,9 @@
 package ew;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import monnemwahlen.mw.KeyPairEntityService;
+import monnemwahlen.mw.MoService;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
@@ -14,9 +18,11 @@ import org.apache.tomcat.util.json.JSONParser;
 import org.apache.tomcat.util.json.ParseException;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.*;
 import java.io.*;
 import java.net.HttpURLConnection;
-import java.security.PublicKey;
+import java.nio.charset.StandardCharsets;
+import java.security.*;
 import java.sql.*;
 import java.util.*;
 
@@ -24,7 +30,7 @@ import static j2html.TagCreator.*;
 
 
 @Service
-public class ElectionService implements MoService {
+public class ElectionService implements MoService, KeyPairEntityService {
 
     private final String workerSavePath = "./EW/src/main/java/ew/electionWorkers";
 
@@ -40,8 +46,8 @@ public class ElectionService implements MoService {
     private Connection polldb_conn;
     private Statement polldb_stmt;
 
-    private PublicKey validatorPBKey;
-    private PublicKey tallierPBKey;
+    private String validatorPBKeyPath = workerSavePath + "/../publicKeys/val";
+    private String tallierPBKeyPath = workerSavePath + "/../publicKeys/tal";
 
     public ElectionService() {
 
@@ -73,8 +79,6 @@ public class ElectionService implements MoService {
             se.printStackTrace();
         }
 
-        getPublicKeysOfEntitiesAndSendRVLs();
-        sendRVLLists();
     }
 
     public boolean checkIfWorkerAndVoterAlign(String worker_id, String voter_id) {
@@ -83,9 +87,9 @@ public class ElectionService implements MoService {
 
     }
 
-    private void getPublicKeysOfEntitiesAndSendRVLs() {
-        Map<String,Object> jsonMapRvl1 = new HashMap<>();
-        Map<String,Object> jsonMapRvl2 = new HashMap<>();
+    public void getPublicKeysOfEntitiesAndSendRVLs() {
+        Map<String, Object> jsonMapRvl1 = new HashMap<>();
+        Map<String, Object> jsonMapRvl2 = new HashMap<>();
 
 
         try {
@@ -93,8 +97,8 @@ public class ElectionService implements MoService {
             String query = "Select * From rvl1;";
             ResultSet rs = ewdb_stmt.executeQuery(query);
 
-            while (rs.next()){
-                jsonMapRvl1.put(rs.getString("worker_id"),rs.getString("public_key"));
+            while (rs.next()) {
+                jsonMapRvl1.put(rs.getString("worker_id"), rs.getString("public_key"));
             }
 
         } catch (SQLException throwables) {
@@ -106,24 +110,49 @@ public class ElectionService implements MoService {
             String query = "Select * From rvl2;";
             ResultSet rs = ewdb_stmt.executeQuery(query);
 
-            while (rs.next()){
-                jsonMapRvl2.put(rs.getString("worker_id"),rs.getString("public_key"));
+            while (rs.next()) {
+                jsonMapRvl2.put(rs.getString("worker_id"), rs.getString("public_key"));
             }
 
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
 
-        Map<String,Object> jsonTal = new HashMap<>();
-        jsonTal.put("rvl1",jsonMapRvl1);
-        jsonTal.put("rvl2",jsonMapRvl2);
+        Map<String, Object> jsonTal = new HashMap<>();
+        jsonTal.put("rvl1", jsonMapRvl1);
+        jsonTal.put("rvl2", jsonMapRvl2);
 
-        Map<String,Object> responseDataVal = sendRequest(getUrl("val")+"/setup",jsonMapRvl1);
-        Map<String,Object> responseDataTal = sendRequest(getUrl("tal")+"/setup",jsonTal);
-        System.out.println(responseDataVal.toString()+responseDataTal.toString());
+        Map<String, Object> responseDataVal = sendPostRequest(getUrl("val") + "/setup", jsonMapRvl1);
+        Map<String, Object> responseDataTal = sendPostRequest(getUrl("tal") + "/setup", jsonTal);
+        System.out.println(responseDataVal.toString() + responseDataTal.toString());
+        savePublicKeyOfEntity(validatorPBKeyPath, responseDataVal.get("key"));
+        savePublicKeyOfEntity(tallierPBKeyPath, responseDataVal.get("key"));
 
     }
 
+    private void savePublicKeyOfEntity(String path, Object key) {
+        PublicKey keyO = stringToPublicKey((String) key);
+        saveFile(path, keyO);
+//            File loc = new File(workerSavePath+"/../publicKeys/"+entity);
+//            FileOutputStream fileOut = new FileOutputStream(loc);
+//            ObjectOutputStream objOut = new ObjectOutputStream(fileOut);
+//            objOut.writeObject(key);
+//            objOut.close();
+
+    }
+
+    private Key loadPublicKeyOfEntity(String entity) {
+        try {
+            File loc = new File(workerSavePath + "/../publicKeys/entity");
+            FileInputStream fileOut = new FileInputStream(loc);
+            ObjectInputStream objOut = new ObjectInputStream(fileOut);
+            Key publicKey = (PublicKey) objOut.readObject();
+            return publicKey;
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
 
     public boolean checkIfWorkerExist(int workerCount) {
@@ -171,7 +200,6 @@ public class ElectionService implements MoService {
     }
 
 
-
     public String createAndSaveUserHtmlPage(Poll poll, List<Candidate> candidates, String voter_id, String worker_id) {
         var page = html(
                 head(
@@ -212,7 +240,7 @@ public class ElectionService implements MoService {
 
 
         String renderedHtml = "<!DOCTYPE html>\n" + page.renderFormatted();
-        String filename = poll.getName() + "_" + voter_id + "_" + "_ballot";
+        String filename = poll.getName() + "_" + voter_id + "_ballot";
         String filepath = "./EW/src/main/resources/templates/" + filename + ".html";
 
         try {
@@ -224,7 +252,6 @@ public class ElectionService implements MoService {
         }
         return filename;
     }
-
 
 
     public Map<String, ElectionWorker> createNewWorkers(int workerCount) {
@@ -413,46 +440,18 @@ public class ElectionService implements MoService {
             }
 
 
-//            connection = (HttpURLConnection) url.openConnection();
-//            connection.setRequestMethod("POST");
-//            connection.setRequestProperty("Content-Type",
-//                    "application/json; utf-8");
-//            connection.setRequestProperty("Accept", "application/json");
-//
-//            connection.setDoOutput(true);
-//
-//            connection.
-//
-//            try(OutputStream os = connection.getOutputStream()) {
-//                byte[] input = jsonString.toString().getBytes(StandardCharsets.UTF_8);
-//                os.write(input, 0, input.length);
-//            }
-//
-//            try(BufferedReader br = new BufferedReader(
-//                    new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
-//                StringBuilder response = new StringBuilder();
-//                String responseLine = null;
-//                while ((responseLine = br.readLine()) != null) {
-//                    response.append(responseLine.trim());
-//                }
-//                System.out.println(response.toString());
-//            }
-
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private void saveVotersToWorkers(LinkedHashMap<String, Object> voter_worker_map) {
-        Map<String, ElectionWorker> workerList = new HashMap<>();
+        Map<String, ElectionWorker> workerList = loadWorkers();
         List<String> IDlist = new ArrayList<>();
-        for (var entry: voter_worker_map.entrySet()){
-            ElectionWorker worker = getElectionWorker((String) entry.getValue());
+        for (var entry : voter_worker_map.entrySet()) {
+            ElectionWorker worker = workerList.get(entry.getValue());
             worker.addVoter((String) entry.getKey());
-            if (!IDlist.contains(worker.getID1())) {
-                workerList.put(worker.getID1(), worker);
-                IDlist.add(worker.getID1());
-            }
+
         }
         saveWorkers_serial(workerList);
 
@@ -463,46 +462,116 @@ public class ElectionService implements MoService {
         return workerList.get(worker_ID);
     }
 
-    public void giveBallotToElectionWorker(Map<String, Object> json) {
+    public String giveBallotToElectionWorker(Map<String, Object> json) {
+        String worker_id = (String) json.get("worker_id");
+        String voter_id = (String) json.get("voter_id");
+        String poll_id = (String) json.get("poll_id");
 
-        ElectionWorker worker = getElectionWorker((String) json.get("worker_id"));
-        ElectionWorker worker2 = new ElectionWorker("23", "23");
-        worker2.test();
-//        worker.encryptAndSetBallot(json);
-        worker2.validateBallot();
+        ElectionWorker worker = getElectionWorker((String) worker_id);
+
+        if (worker.hasVoter(voter_id) && worker.hasVote(voter_id)) {//
+            System.out.println("Voters vote is calculated");
+
+            //   ElectionWorker worker2 = new ElectionWorker("23", "23");
+//        worker2.test();
+            // worker2.validateBallot();
+            String stringedJson = stringifyJson(json);
+            int lengthOfBallot = stringedJson.getBytes(StandardCharsets.UTF_8).length;
+            String encryptedBallot = worker.encryptBallot(stringedJson);
+            String hashedBallot = digest(encryptedBallot);
+            String signedBallot = worker.sign(hashedBallot, 1);
+            Map<String, Object> response = sendBallotToValidator(signedBallot, worker.getID1());
+            String validatedBallot = (String) response.get("ballot");
+
+            String signedBallot2 = worker.sign(validatedBallot, 2);
+            Map<String, Object> response2 = sendBallotAndHashToTallier(signedBallot2, encryptedBallot, worker.getID2());
+            String trackingNumber = (String) response2.get("tracking_number");
+            String talSignedBallot = (String) response2.get("signed_ballot");
+
+            checkSignatureAndSendDecryptionKey(trackingNumber, worker.getDecryptionKey(), talSignedBallot, encryptedBallot, lengthOfBallot);
+            worker.setVoterHasVoted(voter_id, false);
+            saveWorker(worker);
+            return "Your tracking number is: "+trackingNumber+"\n Please write it down";
+        } else {
+            System.out.println("Voter already voted");
+            return "Ballot already used";
+        }
 
     }
 
-    private LinkedHashMap<String, Object> sendRequest(String url, Map<String, Object> jsonData) {
+    private void saveWorker(ElectionWorker worker) {
+        String filename;
+
+        filename = workerSavePath + "/worker_" + worker.getID1() + ".txt";
         try {
+            FileOutputStream file = new FileOutputStream(filename);
+            ObjectOutputStream out = new ObjectOutputStream(file);
 
-            HttpPost httppost = new HttpPost(url);
-
-// Request parameters and other properties.
-            List<NameValuePair> params = new ArrayList<NameValuePair>(2);
-            params.add(new BasicNameValuePair("json", jsonData.toString()));
-            httppost.setEntity(new UrlEncodedFormEntity(params, "UTF-8"));
-
-            try (CloseableHttpClient httpclient = HttpClients.createDefault();
-                 CloseableHttpResponse response = httpclient.execute(httppost)) {
-
-                String handledResponse = new BasicResponseHandler().handleResponse(response);
-
-                JSONParser parser = new JSONParser(handledResponse);
-
-                return parser.parseObject();
-
-                //here we could work with the response which contains the voter ids mapped to the worker ids.
-
-            } catch (ParseException e) {
-                e.printStackTrace();
-            }
+            out.writeObject(worker);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
+    }
 
+    private String stringifyJson(Map<String, Object> json) {
+        try {
+
+            Map<String, Object> newJson = new HashMap<>();
+            List<Candidate> candidates = getCandidates(getPoll((String) json.get("poll_id")));
+            int counter = 1;
+            for (Candidate candidate : candidates) {
+                newJson.put(candidate.getName(), ((ArrayList) json.get("vote")).get(counter++));
+            }
+            return new ObjectMapper().writeValueAsString(newJson);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
         return null;
+    }
+
+    private void checkSignatureAndSendDecryptionKey(String trackingNumber, PublicKey decryptionKey, String talSignedBallot, String encryptedBallot, int lengthOfBallot) {
+        PublicKey tallierPK = (PublicKey) getKey(tallierPBKeyPath);
+        try {
+            String re_encryptedBallot = encrypt(talSignedBallot, Cipher.DECRYPT_MODE, tallierPK);
+
+            if (!re_encryptedBallot.equals(encryptedBallot)) {
+                System.out.println("Ballots not the same !");
+            }
+        } catch (Exception ex) {
+            System.out.println("Ballots not checkable due encryption size");
+        }
+
+        //send second time to tallier
+        Map<String, Object> reqJs = new HashMap<>();
+        reqJs.put("tracking_number", trackingNumber);
+        reqJs.put("decryptionKey", Base64.getEncoder().encodeToString(decryptionKey.getEncoded()));
+        reqJs.put("ballotLength", lengthOfBallot);
+        Map<String, Object> response = sendPostRequest(getUrl("tal") + "/decryptBallot", reqJs);
+    }
+
+    private Map<String, Object> sendBallotAndHashToTallier(String signedValidatedBallot, String encryptedBallot, String id2) {
+        //send first time to tallier
+        Map<String, Object> reqJs = new HashMap<>();
+        reqJs.put("signedHashBallot", signedValidatedBallot);
+        reqJs.put("encryptedBallot", encryptedBallot);
+        reqJs.put("id", id2);
+        return sendPostRequest(getUrl("tal") + "/tallyBallot", reqJs);
+
+
+    }
+
+    private Map<String, Object> sendBallotToValidator(String signedBallot, String id1) {
+        Map<String, Object> reqJs = new HashMap<>();
+        reqJs.put("ballot", signedBallot);
+        reqJs.put("id", id1);
+        Map<String, Object> response = sendPostRequest(getUrl("val") + "/validateBallot", reqJs);
+        return response;
+    }
+
+    public boolean voterHasNotVoted(String worker_id, String voter_id) {
+        ElectionWorker worker = getElectionWorker(worker_id);
+        return worker.hasVote(voter_id);
     }
 
 
@@ -595,4 +664,5 @@ public class ElectionService implements MoService {
 //
 //
 //    }
+
 }

@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
     <head>
         <title>
-            vote sheet for poll1
+            vote sheet for ${poll_id}
         </title>
         <link rel="stylesheet" th:href="@{/ballot.css}">
         <script type="text/javascript" th:src="@{/script.js}" th:inline="javascript">
@@ -13,85 +13,86 @@
             <h3>
                 remaining votes:
             </h3>
-            <input id="remainingVotes" readonly value="7">
+            <input id="Votes to spend:   " readonly value="7">
         </div>
+        <h1></h1>
         <div class="backgrnG border margin1 flex fCol">
             <div class="fCol margin1 doubleColumn flex">
                             <div class="backgrnB row border margin1 doubleColumn flex fEl">
-                    <h3 class="fEl margin1">
+                    <label class="fEl margin1">
                         Adam
-                    </h3>
+                    </label>
                     <input id="1_input" type="number" max=7 class="input fEl margin1" th:onchange="calcInputs(value)" min = 0 value = 0>
                 </div>
                 <div class="backgrnB row border margin1 doubleColumn flex fEl">
-                    <h3 class="fEl margin1">
+                    <label class="fEl margin1">
                         Bob
-                    </h3>
+                    </label>
                     <input id="2_input" type="number" max=7 class="input fEl margin1" th:onchange="calcInputs(value)" min = 0 value = 0>
                 </div>
                 <div class="backgrnB row border margin1 doubleColumn flex fEl">
-                    <h3 class="fEl margin1">
+                    <label class="fEl margin1">
                         Charlie
-                    </h3>
+                    </label>
                     <input id="3_input" type="number" max=7 class="input fEl margin1" th:onchange="calcInputs(value)" min = 0 value = 0>
                 </div>
                 <div class="backgrnB row border margin1 doubleColumn flex fEl">
-                    <h3 class="fEl margin1">
+                    <label class="fEl margin1">
                         David
-                    </h3>
+                    </label>
                     <input id="4_input" type="number" max=7 class="input fEl margin1" th:onchange="calcInputs(value)" min = 0 value = 0>
                 </div>
                 <div class="backgrnB row border margin1 doubleColumn flex fEl">
-                    <h3 class="fEl margin1">
+                    <label class="fEl margin1">
                         Eve
-                    </h3>
+                    </label>
                     <input id="5_input" type="number" max=7 class="input fEl margin1" th:onchange="calcInputs(value)" min = 0 value = 0>
                 </div>
                 <div class="backgrnB row border margin1 doubleColumn flex fEl">
-                    <h3 class="fEl margin1">
+                    <label class="fEl margin1">
                         Fabian
-                    </h3>
+                    </label>
                     <input id="6_input" type="number" max=7 class="input fEl margin1" th:onchange="calcInputs(value)" min = 0 value = 0>
                 </div>
                 <div class="backgrnB row border margin1 doubleColumn flex fEl">
-                    <h3 class="fEl margin1">
+                    <label class="fEl margin1">
                         Gustav
-                    </h3>
+                    </label>
                     <input id="7_input" type="number" max=7 class="input fEl margin1" th:onchange="calcInputs(value)" min = 0 value = 0>
                 </div>
                 <div class="backgrnB row border margin1 doubleColumn flex fEl">
-                    <h3 class="fEl margin1">
+                    <label class="fEl margin1">
                         Hildegard
-                    </h3>
+                    </label>
                     <input id="8_input" type="number" max=7 class="input fEl margin1" th:onchange="calcInputs(value)" min = 0 value = 0>
                 </div>
                 <div class="backgrnB row border margin1 doubleColumn flex fEl">
-                    <h3 class="fEl margin1">
+                    <label class="fEl margin1">
                         Isildur
-                    </h3>
+                    </label>
                     <input id="9_input" type="number" max=7 class="input fEl margin1" th:onchange="calcInputs(value)" min = 0 value = 0>
                 </div>
                 <div class="backgrnB row border margin1 doubleColumn flex fEl">
-                    <h3 class="fEl margin1">
+                    <label class="fEl margin1">
                         James
-                    </h3>
+                    </label>
                     <input id="10_input" type="number" max=7 class="input fEl margin1" th:onchange="calcInputs(value)" min = 0 value = 0>
                 </div>
                 <div class="backgrnB row border margin1 doubleColumn flex fEl">
-                    <h3 class="fEl margin1">
+                    <label class="fEl margin1">
                         Kevin
-                    </h3>
+                    </label>
                     <input id="11_input" type="number" max=7 class="input fEl margin1" th:onchange="calcInputs(value)" min = 0 value = 0>
                 </div>
                 <div class="backgrnB row border margin1 doubleColumn flex fEl">
-                    <h3 class="fEl margin1">
+                    <label class="fEl margin1">
                         Lukas
-                    </h3>
+                    </label>
                     <input id="12_input" type="number" max=7 class="input fEl margin1" th:onchange="calcInputs(value)" min = 0 value = 0>
                 </div>
                         </div>
             <div>
-                <button th:onclick="pushedButton();" class="button margin1 flex">
+                <button th:attr="onclick=|pushedButton('${worker_id}','${voter_id}','${poll_id}','${url}')|" class="button margin1 flex">
                     Send Ballot
                 </button>
             </div>

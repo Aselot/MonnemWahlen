@@ -22,9 +22,12 @@ public class DatabaseCreator {
             "use polldb;",
             "create table if not exists polls(poll_id int auto_increment, name char(50) not null, seats int not null, primary key(poll_id));",
             "create table if not exists poll1(candidate_id int auto_increment, name char(50) not null, primary key(candidate_id));",
-            "use valdb;",
+            "use validatordb;",
+            "create table if not exists rvl1 (worker_id char(50) not null, public_key varchar(2000) not null,voter_ids varchar(20000), primary key(worker_id));",
+            "use tallierdb;",
             "create table if not exists rvl1 (worker_id char(50) not null, public_key varchar(2000) not null,voter_ids varchar(20000), primary key(worker_id));",
             "create table if not exists rvl2 (worker_id char(50) not null, public_key varchar(2000) not null,voter_ids varchar(20000), primary key(worker_id));",
+            "create table if not exists rv (tracking_number char(50) not null, ballot varchar(2000) not null, primary key(tracking_number));",
 
     };
 

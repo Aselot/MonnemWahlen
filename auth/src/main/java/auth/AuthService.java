@@ -1,5 +1,7 @@
 package auth;
 
+import monnemwahlen.mw.KeyPairEntityService;
+import monnemwahlen.mw.MoService;
 import org.apache.tomcat.util.json.JSONParser;
 import org.apache.tomcat.util.json.ParseException;
 import org.springframework.stereotype.Service;
@@ -10,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class AuthService {
+public class AuthService implements MoService, KeyPairEntityService {
 
     private final String JDBC_DRIVER = "org.mariadb.jdbc.Driver";
     private final String DB_URL = "jdbc:mariadb://localhost:3306";

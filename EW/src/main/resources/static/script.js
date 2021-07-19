@@ -9,13 +9,11 @@ function calcInputs(value) {
     counter = 0
     maxVotes = parseInt(inputs[0].value)
     flag = false
-    for (index = 0; index < inputs.length; ++index) {
+    for (index = 1; index < inputs.length; ++index) {
         elem = inputs[index]
         console.log(inputs[index].value)
-        if (elem.id !== 'remainingVotes') {
-            counter += parseInt(elem.value)
-        }
 
+        counter += parseInt(elem.value)
         if (counter > maxVotes) {
             flag = true
             elem.value = 0
@@ -29,23 +27,32 @@ function calcInputs(value) {
 
 }
 
-function pushedButton(worker_id, voter_id, poll_id) {
+function pushedButton(worker_id, voter_id, poll_id, url) {
 
     inputs = document.getElementsByTagName('input');
     json = {
         "voter_id": voter_id,
         "worker_id": worker_id,
-        "poll_id":poll_id,
-        "vote":[]
+        "poll_id": poll_id,
+        "vote": []
     }
+    console.log(inputs)
+
     for (index = 1; index < inputs.length; ++index) {
         json["vote"][index] = inputs[index].value
     }
 
     var xhr = new XMLHttpRequest();
-    xhr.open("POST", "http://localhost:8082/postBallot", true);
+    xhr.open("POST", url+"/postBallot", true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     console.log(json, " ", voter_id, worker_id)
+
+
+    xhr.onreadystatechange  = function () {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+                alert(xhr.responseText)
+        }
+    };
 
     xhr.send(JSON.stringify(json));
     console.log(xhr)
