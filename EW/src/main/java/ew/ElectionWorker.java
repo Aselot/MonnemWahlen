@@ -1,14 +1,13 @@
 package ew;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.codec.binary.Base64;
 
 import javax.crypto.*;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 
 public class ElectionWorker implements Serializable {
@@ -16,10 +15,7 @@ public class ElectionWorker implements Serializable {
     private String ID1;
     private String ID2;
 
-    private String ballot;
-    private String cipherBallot;
-
-    private Map<String,Boolean> voterList;
+    private Map<String, Boolean> voterList;
 
     private KeyPair firstPair;
     private PrivateKey firstPrivateKey;
@@ -36,10 +32,6 @@ public class ElectionWorker implements Serializable {
     private KeyPair blindKeyPair;
     private PrivateKey blindingKey;
     private PublicKey deblindingKey;
-
-    private SecretKey symmKey;
-    private String[] VoterIDs;
-    private String hashed_cipher_Ballot;
 
     public ElectionWorker(String ID1, String ID2) {
         KeyPairGenerator keygen;
@@ -67,18 +59,13 @@ public class ElectionWorker implements Serializable {
             encryptionKey = ek_dkPair.getPrivate();
             decryptionKey = ek_dkPair.getPublic();
 
-
-            smallKeygen = KeyPairGenerator.getInstance("Elgamal");
+            smallKeygen = KeyPairGenerator.getInstance("RSA");
 
             smallKeygen.initialize(2048);
 
             blindKeyPair = smallKeygen.generateKeyPair();
             blindingKey = blindKeyPair.getPrivate();
             deblindingKey = blindKeyPair.getPublic();
-
-            symKeygen = KeyGenerator.getInstance("AES");
-            symKeygen.init(256);
-            symmKey = symKeygen.generateKey();
 
             System.out.println("Key pairs for " + ID1 + " generated");
 
@@ -89,7 +76,7 @@ public class ElectionWorker implements Serializable {
     }
 
     public void addVoter(String voter_id) {
-        voterList.put(voter_id,Boolean.TRUE);
+        voterList.put(voter_id, Boolean.TRUE);
     }
 
     public boolean hasVoter(String voter_id) {
@@ -100,84 +87,42 @@ public class ElectionWorker implements Serializable {
         return voterList.get(voter_id);
     }
 
-//    public void test() {
-//
-//        ballot = "json.toString()23123123312as2dsfs2f23f233123123123123123";
-//        try {
-//            //first encrypt with ek
-//            String encrypted_Ballot = encrypt(ballot, Cipher.ENCRYPT_MODE, encryptionKey);
-//
-//            //hash it
-//            String hashed_encrypted_Ballot = digest(encrypted_Ballot);
-//            //blind it
-//            String blinded_hashed_encrypted_Ballot = encrypt(hashed_encrypted_Ballot, Cipher.ENCRYPT_MODE, blindingKey);
-//
-//            String re_encryptedBallot = encrypt(blinded_hashed_encrypted_Ballot, Cipher.DECRYPT_MODE, deblindingKey);
-//
-//
-//
-//            //sign it test
-//            String signed_h_e_B = encrypt(re_encryptedBallot, Cipher.ENCRYPT_MODE, firstPrivateKey);
-//
-//            //remove blind
-//
-//
-//            //remove sign
-//            String re_hashed_encrypted_Ballot = encrypt(signed_h_e_B, Cipher.DECRYPT_MODE, firstPublicKey);
-//
-//            System.out.println("" + re_encryptedBallot + re_hashed_encrypted_Ballot);
-////            cipherBallot = blind(digest(encrypt(ballot)));
-//
-//        } catch (BadPaddingException | IllegalBlockSizeException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException e) {
-//            e.printStackTrace();
-//        }
-//
-//    }
+    public void setVoterHasVoted(String voter_id, boolean b) {
+        voterList.put(voter_id, Boolean.FALSE);
+    }
 
-
+    //normally encryptingBallots
     public String encryptBallot(String ballot) {
-
         try {
-           /// ballot = new ObjectMapper().writeValueAsString(json);
-            cipherBallot = encrypt(ballot, Cipher.ENCRYPT_MODE, encryptionKey);
+            /// ballot = new ObjectMapper().writeValueAsString(json);
+            return encrypt(ballot, Cipher.ENCRYPT_MODE, encryptionKey);
 
         } catch (BadPaddingException | IllegalBlockSizeException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
-
-        return cipherBallot;
+        return null;
     }
 
-    public void setVoterHasVoted(String voter_id, boolean b) {
-        voterList.put(voter_id,Boolean.FALSE);
-    }
-
-
-    public String sign(String ballot,int key){
-
+    public String sign(String ballot, int key) {
         try {
-            return encrypt(ballot,Cipher.ENCRYPT_MODE,key==1? firstPrivateKey: secondPrivateKey);
+            return encrypt(ballot, Cipher.ENCRYPT_MODE, key == 1 ? firstPrivateKey : secondPrivateKey);
         } catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException e) {
             e.printStackTrace();
         }
         return null;
     }
 
-    //
-
-//
-
-    public String encrypt(String input, int decryptMode, Key key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+    private String encrypt(String input, int decryptMode, Key key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
         // cant use RSA/ECB/PKCS1Padding since it destroys the signature of the ballot
         Cipher cipher = Cipher.getInstance("RSA/ECB/NOPADDING");
         cipher.init(decryptMode, key);
 
-       // return Base64.encodeBase64String(cipher.doFinal(input.getBytes(StandardCharsets.UTF_8)));
+        // return Base64.encodeBase64String(cipher.doFinal(input.getBytes(StandardCharsets.UTF_8)));
 
-        return crpt(input,cipher,decryptMode);
+        return crpt(input, cipher, decryptMode);
     }
 
-    public String crpt(String input, Cipher cipher, int cryptType) throws BadPaddingException, IllegalBlockSizeException {
+    private String crpt(String input, Cipher cipher, int cryptType) throws BadPaddingException, IllegalBlockSizeException {
         byte[] inputArray;
         if (cryptType == Cipher.DECRYPT_MODE) {
             inputArray = Base64.decodeBase64(input);
@@ -229,73 +174,5 @@ public class ElectionWorker implements Serializable {
         return decryptionKey;
     }
 
-    public String getCipherBallot() {
-        return cipherBallot;
-    }
-
-
-//    private String sign(String blinded_hashed_encrypted_ballot) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
-//
-//        Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-//
-//        cipher.init(Cipher.ENCRYPT_MODE, firstPrivateKey);
-//
-//        return; Base64.encodeBase64String(cipher.doFinal(blinded_hashed_encrypted_ballot.getBytes(StandardCharsets.UTF_8)))
-//    }
-//
-//    public String clearSign(String blindedBallot) throws
-//            UnsupportedEncodingException, BadPaddingException, IllegalBlockSizeException, InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException {
-//        Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-//
-//        cipher.init(Cipher.DECRYPT_MODE, firstPublicKey);
-//
-//        return new String(cipher.doFinal(Base64.decodeBase64(blindedBallot)));
-//    }
-
-
-//    public String encrypt(String ballot) throws BadPaddingException, IllegalBlockSizeException, InvalidKeyException,
-//            UnsupportedEncodingException {
-//        Cipher cipher = null;
-//        try {
-//            cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-//        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-//            e.printStackTrace();
-//        }
-//
-//        cipher.init(Cipher.ENCRYPT_MODE, encryptionKey);
-//
-//        return Base64.encodeBase64String(cipher.doFinal(ballot.getBytes("UTF-8")));
-//    }
-//
-//    public String decrypt(String encryptedBallot) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
-//        Cipher cipher = null;
-//
-//        cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-//
-//        cipher.init(Cipher.DECRYPT_MODE, decryptionKey);
-//
-//        return new String(cipher.doFinal(Base64.decodeBase64(encryptedBallot)));
-//    }
-
-    //    public String blind(String hashed_encrypted_Ballot) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException, UnsupportedEncodingException {
-//
-////        byte[] byted_Ballot = ByteBuffer.allocate(4).putInt(hashed_encrypted_Ballot).array();
-////
-//        Cipher cipher = Cipher.getInstance("AES");
-//
-//        cipher.init(Cipher.ENCRYPT_MODE, symmKey);
-//
-//        return crpt();
-//
-//    }
-//
-//    public String removeBlind(String blindedBallot) throws
-//            UnsupportedEncodingException, BadPaddingException, IllegalBlockSizeException, InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException {
-//        Cipher cipher = Cipher.getInstance("AES");
-//
-//        cipher.init(Cipher.DECRYPT_MODE, symmKey);
-//
-//        return new String(cipher.doFinal(Base64.decodeBase64(blindedBallot)));
-//    }
 
 }

@@ -28,6 +28,8 @@ public class DatabaseCreator {
             "create table if not exists rvl1 (worker_id char(50) not null, public_key varchar(2000) not null,voter_ids varchar(20000), primary key(worker_id));",
             "create table if not exists rvl2 (worker_id char(50) not null, public_key varchar(2000) not null,voter_ids varchar(20000), primary key(worker_id));",
             "create table if not exists rv (tracking_number char(50) not null, ballot varchar(2000) not null, primary key(tracking_number));",
+            "Insert into polldb.polls(name,seats) values (\"poll1\",7)",
+            "Insert into polldb.poll1(name) values (\"Adam\"),(\"Kevin\"),(\"Lukas\"),(\"Bob\"),(\"James\"),(\"Eve\"),(\"Charlie\"),(\"Fabian\"),(\"Hildegard\"),(\"David\"),(\"Gustav\"),(\"isildur\");",
 
     };
 

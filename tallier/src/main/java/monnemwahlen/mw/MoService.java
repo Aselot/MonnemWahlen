@@ -29,7 +29,7 @@ import java.util.*;
 
 public interface MoService {
 
-    String IP = "http://85.216.95.202";
+    String IP = "http://localhost";
     Map<String, String> ports = new HashMap<>() {{
         put("auth", "8081");
         put("ew", "8082");

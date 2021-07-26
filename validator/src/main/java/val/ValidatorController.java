@@ -40,6 +40,15 @@ public class ValidatorController {
         return null;
     }
 
+    @GetMapping("getPK")
+    @ResponseBody
+    public Map<String, Object> getPK(){
+        Map<String, Object> resJs = new HashMap<>();
+        resJs.put("pk", validatorService.getKeyString(validatorService.getPublicKeyPath()));
+        return resJs;
+
+    }
+
     @PostMapping("validateBallot")
     @ResponseBody
     public Map<String, Object> validateBallot(HttpServletRequest request){
@@ -59,12 +68,5 @@ public class ValidatorController {
         return null;
     }
 
-    @GetMapping("getPK")
-    @ResponseBody
-    public Map<String, Object> getPK(){
-        Map<String, Object> resJs = new HashMap<>();
-        resJs.put("pk", validatorService.getKeyString(validatorService.getPublicKeyPath()));
-        return resJs;
 
-    }
 }

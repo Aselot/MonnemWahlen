@@ -170,6 +170,7 @@ public class AuthService implements MoService, KeyPairEntityService {
             stmt.executeQuery(String.valueOf(query + ";"));
         } catch (SQLException throwables) {
             throwables.printStackTrace();
+            System.out.println("SQL error, either no users in voters list or wrong credentials for the sql user ");
         }
 
     }
