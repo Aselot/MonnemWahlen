@@ -40,7 +40,7 @@ jedem Start einer Entität knapp 5 - 10 Sekunden warten bevor man die nächste s
 1) Starten des Authenticator in mw/auth/src/main/java/auth/AuthApplication.java
 2) Starten des Validator in mw/validator/src/main/java/auth/ValidatorApplication.java
 3) Starten des Authenticator in mw/tallier/src/main/java/auth/TallierApplication.java
-4) Starten des Authenticator in mw/EW/src/main/java/auth/ElectionWorkerApplication.java
+4) Starten des ElectionWorkers in mw/EW/src/main/java/auth/ElectionWorkerApplication.java
 
 
 
